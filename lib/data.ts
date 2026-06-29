@@ -10,17 +10,27 @@ export interface User {
   phone: string
 }
 
+export type BuffaloStatus = "Lactating" | "Dry" | "Pregnant" | "Sick"
+export type AnimalStage = "Calf" | "Heifer" | "Pregnant" | "Lactating" | "Dry" | "Sick" | "Sold" | "Dead"
+
 export interface Buffalo {
   id: string
   name: string
   tagNumber: string
+  qrCodeData?: string
   breed: string
   age: number
   weight: number
-  status: "Lactating" | "Dry" | "Pregnant" | "Sick"
+  status: BuffaloStatus
+  stage?: AnimalStage
+  bodyScore?: number
   purchaseDate: string
   purchaseCost: number
   source: string
+  motherId?: string
+  fatherId?: string
+  dateOfBirth?: string
+  bloodline?: string
   lactationStart?: string
   lactationEnd?: string
   milkYieldPerDay: number
@@ -30,6 +40,8 @@ export interface Buffalo {
   lastHeatDate?: string
   nextVaccination?: string
   insurance?: string
+  soldAt?: string
+  deathDate?: string
 }
 
 export interface MilkEntry {
@@ -101,7 +113,7 @@ export interface Loan {
 
 // Demo Users
 export const users: User[] = [
-  { id: "1", name: "Rajesh Patel", email: "admin@dairyfarm.com", role: "admin", phone: "+91 98765 43210" },
+  { id: "1", name: "Mohit Chavda", email: "admin@dairyfarm.com", role: "admin", phone: "+91 98765 43210" },
   { id: "2", name: "Suresh Kumar", email: "manager@dairyfarm.com", role: "manager", phone: "+91 98765 43211" },
   { id: "3", name: "Ramesh Bhai", email: "worker@dairyfarm.com", role: "worker", phone: "+91 98765 43212" },
   { id: "4", name: "Mahesh Shah", email: "accountant@dairyfarm.com", role: "accountant", phone: "+91 98765 43213" },
@@ -236,8 +248,8 @@ export const alerts = [
 
 // Role permissions
 export const rolePermissions: Record<UserRole, string[]> = {
-  admin: ["dashboard", "buffalo", "milk", "feed", "medical", "labour", "finance", "loans", "inventory", "reports", "settings"],
-  manager: ["dashboard", "buffalo", "milk", "feed", "medical", "labour", "inventory", "reports"],
+  admin: ["dashboard", "buffalo", "milk", "feed", "reproduction", "medical", "labour", "finance", "loans", "inventory", "reports", "settings"],
+  manager: ["dashboard", "buffalo", "milk", "feed", "reproduction", "medical", "labour", "inventory", "reports"],
   worker: ["dashboard", "milk", "feed", "medical"],
   accountant: ["dashboard", "finance", "loans", "reports", "labour"],
 }

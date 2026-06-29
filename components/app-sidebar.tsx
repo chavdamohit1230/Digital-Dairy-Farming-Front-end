@@ -1,8 +1,9 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { useI18n } from "@/lib/i18n/context"
 import {
-  LayoutDashboard, Bug as Buffalo, Milk, Wheat, Stethoscope, Users, IndianRupee,
+  LayoutDashboard, Bug as Buffalo, Milk, Wheat, Heart, Stethoscope, Users, IndianRupee,
   Landmark, Package, FileBarChart, LogOut, ChevronLeft, ChevronRight, Menu, Settings
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,21 +11,22 @@ import { cn } from "@/lib/utils"
 import { useState } from "react"
 
 export type ActivePage =
-  | "dashboard" | "buffalo" | "milk" | "feed" | "medical"
+  | "dashboard" | "buffalo" | "milk" | "feed" | "reproduction" | "medical"
   | "labour" | "finance" | "loans" | "inventory" | "reports" | "settings"
 
-const navItems: { id: ActivePage; label: string; icon: React.ReactNode; module: string }[] = [
-  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-5 w-5" />, module: "dashboard" },
-  { id: "buffalo", label: "Buffalo", icon: <Buffalo className="h-5 w-5" />, module: "buffalo" },
-  { id: "milk", label: "Milk Production", icon: <Milk className="h-5 w-5" />, module: "milk" },
-  { id: "feed", label: "Feed Management", icon: <Wheat className="h-5 w-5" />, module: "feed" },
-  { id: "medical", label: "Medical & Vet", icon: <Stethoscope className="h-5 w-5" />, module: "medical" },
-  { id: "labour", label: "Labour", icon: <Users className="h-5 w-5" />, module: "labour" },
-  { id: "finance", label: "Finance", icon: <IndianRupee className="h-5 w-5" />, module: "finance" },
-  { id: "loans", label: "Loans & Subsidy", icon: <Landmark className="h-5 w-5" />, module: "loans" },
-  { id: "inventory", label: "Inventory", icon: <Package className="h-5 w-5" />, module: "inventory" },
-  { id: "reports", label: "Reports", icon: <FileBarChart className="h-5 w-5" />, module: "reports" },
-  { id: "settings", label: "Settings", icon: <Settings className="h-5 w-5" />, module: "settings" },
+const navItems: { id: ActivePage; icon: React.ReactNode; module: string }[] = [
+  { id: "dashboard", icon: <LayoutDashboard className="h-5 w-5" />, module: "dashboard" },
+  { id: "buffalo", icon: <Buffalo className="h-5 w-5" />, module: "buffalo" },
+  { id: "milk", icon: <Milk className="h-5 w-5" />, module: "milk" },
+  { id: "feed", icon: <Wheat className="h-5 w-5" />, module: "feed" },
+  { id: "reproduction", icon: <Heart className="h-5 w-5" />, module: "reproduction" },
+  { id: "medical", icon: <Stethoscope className="h-5 w-5" />, module: "medical" },
+  { id: "labour", icon: <Users className="h-5 w-5" />, module: "labour" },
+  { id: "finance", icon: <IndianRupee className="h-5 w-5" />, module: "finance" },
+  { id: "loans", icon: <Landmark className="h-5 w-5" />, module: "loans" },
+  { id: "inventory", icon: <Package className="h-5 w-5" />, module: "inventory" },
+  { id: "reports", icon: <FileBarChart className="h-5 w-5" />, module: "reports" },
+  { id: "settings", icon: <Settings className="h-5 w-5" />, module: "settings" },
 ]
 
 interface AppSidebarProps {
@@ -34,6 +36,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
   const { user, logout, hasPermission } = useAuth()
+  const { t } = useI18n()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -58,7 +61,7 @@ export function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
         <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
           <Milk className="h-5 w-5 text-sidebar-primary-foreground" />
         </div>
-        {!collapsed && <span className="text-lg font-bold tracking-tight">DairyPro</span>}
+        {!collapsed && <span className="text-base font-bold tracking-tight leading-tight">{t.app.name}</span>}
       </div>
 
       {/* User Info */}
@@ -74,7 +77,9 @@ export function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 py-3 overflow-y-auto">
         <div className="flex flex-col gap-1 px-2">
-          {filteredNav.map((item) => (
+          {filteredNav.map((item) => {
+            const label = (t.nav as Record<string, string>)[item.id] || item.id
+            return (
             <button
               key={item.id}
               onClick={() => {
@@ -87,12 +92,12 @@ export function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               )}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? label : undefined}
             >
               {item.icon}
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{label}</span>}
             </button>
-          ))}
+          )})}
         </div>
       </nav>
 

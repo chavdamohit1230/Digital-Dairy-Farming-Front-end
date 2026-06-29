@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { useI18n } from "@/lib/i18n/context"
 import { users } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,8 @@ import { Switch } from "@/components/ui/switch"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table"
-import { ShieldCheck, Users, Bell, Globe, Database, Phone } from "lucide-react"
+import { Users, Bell, Globe, Database } from "lucide-react"
+import type { Locale } from "@/lib/i18n/messages"
 
 const roleBadgeColor: Record<string, string> = {
   admin: "bg-chart-3/10 text-chart-3 border-chart-3/20",
@@ -22,6 +24,7 @@ const roleBadgeColor: Record<string, string> = {
 
 export function SettingsPage() {
   const { user } = useAuth()
+  const { locale, setLocale } = useI18n()
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,7 +50,7 @@ export function SettingsPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Owner Name</Label>
-              <Input defaultValue="Rajesh Patel" />
+              <Input defaultValue="Mohit Chavda" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Location</Label>
@@ -147,6 +150,31 @@ export function SettingsPage() {
                 </div>
                 <Switch defaultChecked={item.defaultChecked} />
               </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Language */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base text-card-foreground">Language / भाषा</CardTitle>
+          </div>
+          <CardDescription>English, Hindi, Gujarati - for rural-friendly use</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {(["en", "hi", "gu"] as Locale[]).map((lang) => (
+              <Button
+                key={lang}
+                variant={locale === lang ? "default" : "outline"}
+                size="sm"
+                onClick={() => setLocale(lang)}
+              >
+                {lang === "en" ? "English" : lang === "hi" ? "हिंदी" : "ગુજરાતી"}
+              </Button>
             ))}
           </div>
         </CardContent>

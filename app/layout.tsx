@@ -6,7 +6,7 @@ import './globals.css'
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
-  title: 'DairyPro - Digital Dairy Farm Management',
+  title: 'Digital Dairy Farming - Smart Farm Management',
   description: 'Complete buffalo dairy farm management solution for tracking milk production, finances, health, and operations.',
   generator: 'v0.app',
   icons: {

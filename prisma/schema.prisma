@@ -1,0 +1,468 @@
+// Digital Dairy Farm Management System - Murrah Buffalo Optimized
+// Enterprise SaaS - Multi-Farm, PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ MULTI-FARM & ORG ============
+model Farm {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  address     String?
+  state       String?
+  district   String?
+  phone      String?
+  ownerId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  animals    Animal[]
+  farmUsers  FarmUser[]
+  workers    Worker[]
+  transactions Transaction[]
+  loans       Loan[]
+  inventoryItems InventoryItem[]
+  rationPlans RationPlan[]
+  alerts      Alert[]
+  auditLogs   AuditLog[]
+}
+
+// ============ AUTH & USERS ============
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  role          UserRole  @default(manager)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret String?
+  language      String    @default("en") // en, hi, gu
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  farmUsers     FarmUser[]
+  auditLogs     AuditLog[] @relation("UserAudit")
+}
+
+enum UserRole {
+  admin
+  manager
+  worker
+  accountant
+  vet
+}
+
+model FarmUser {
+  id        String   @id @default(cuid())
+  userId    String
+  farmId    String
+  role      UserRole
+  userId_user User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farmId_farm Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  @@unique([userId, farmId])
+}
+
+// ============ ANIMAL LIFECYCLE ============
+model Animal {
+  id              String        @id @default(cuid())
+  farmId          String
+  farm            Farm          @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  uniqueId        String        @unique // BUF001 style
+  rfidTag         String?       @unique
+  qrCodeData      String?       // QR payload for scanning
+  name            String?
+  breed           String        @default("Murrah")
+  bloodline       String?
+  dateOfBirth     DateTime?
+  motherId        String?
+  fatherId        String?
+  purchaseSource  String?
+  purchaseCost    Decimal?      @db.Decimal(12, 2)
+  purchaseDate    DateTime?
+  insuranceNumber String?
+  insuranceExpiry DateTime?
+  photoUrl        String?
+  bodyScore       Decimal?      @db.Decimal(3, 1) // 1-5
+  currentStage    AnimalStage   @default(calf)
+  statusNotes     String?       // Sick reason, etc.
+  soldAt          DateTime?
+  soldAmount      Decimal?      @db.Decimal(12, 2)
+  deathDate       DateTime?
+  deathReason     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  milkRecords     MilkRecord[]
+  heatRecords     HeatRecord[]
+  breedingRecords BreedingRecord[]
+  pregnancyRecords PregnancyRecord[]
+  lactationCycles  LactationCycle[]
+  healthRecords   HealthRecord[]
+  vaccinations   Vaccination[]
+  treatments      Treatment[]
+}
+
+enum AnimalStage {
+  calf
+  heifer
+  pregnant
+  lactating
+  dry
+  sick
+  sold
+  dead
+}
+
+// ============ REPRODUCTION & BREEDING ============
+model HeatRecord {
+  id          String   @id @default(cuid())
+  animalId    String
+  animal      Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  heatDate    DateTime
+  detectedBy  String?  // manual, iot_collar
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model BreedingRecord {
+  id            String   @id @default(cuid())
+  animalId      String
+  animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  type          BreedingType // ai, natural
+  breedingDate  DateTime
+  bullId        String?  // for natural
+  semenBatch    String?  // for AI
+  technician    String?
+  conception    Boolean? // null = pending
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+enum BreedingType {
+  ai
+  natural
+}
+
+model PregnancyRecord {
+  id                String    @id @default(cuid())
+  animalId          String
+  animal            Animal    @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  breedingRecordId  String?
+  conceptionDate     DateTime?
+  pregnancyDiagnosisDate DateTime?
+  expectedCalvingDate DateTime?
+  actualCalvingDate  DateTime?
+  dryPeriodStart     DateTime?
+  dryPeriodEnd       DateTime?
+  outcome            String?   // live_calf, stillbirth, abortion
+  createdAt          DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model LactationCycle {
+  id                String   @id @default(cuid())
+  animalId          String
+  animal            Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  calvingDate       DateTime
+  dryDate           DateTime?
+  lactationNumber   Int      @default(1)
+  daysInMilk        Int?     // computed
+  totalYield305     Decimal? @db.Decimal(10, 2) // 305-day yield
+  peakMilkDay       Int?
+  peakMilkYield     Decimal? @db.Decimal(6, 2)
+  createdAt         DateTime @default(now())
+}
+
+// ============ MILK PRODUCTION ============
+model MilkRecord {
+  id            String   @id @default(cuid())
+  animalId      String
+  animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  recordDate    DateTime @db.Date
+  morningYield  Decimal  @db.Decimal(6, 2)
+  eveningYield  Decimal  @db.Decimal(6, 2)
+  totalYield    Decimal  @db.Decimal(6, 2)
+  fatPercent    Decimal? @db.Decimal(4, 2)
+  snfPercent    Decimal? @db.Decimal(4, 2)
+  qualityGrade  String?  // A, B, C, rejected
+  rejectedReason String?
+  rejectedQty   Decimal? @db.Decimal(6, 2)
+  ratePerLitre  Decimal? @db.Decimal(8, 2)
+  createdAt     DateTime @default(now())
+  @@unique([animalId, recordDate])
+  @@index([recordDate])
+  @@index([animalId])
+}
+
+// ============ FEED & NUTRITION ============
+model FeedItem {
+  id          String   @id @default(cuid())
+  name        String
+  type        FeedType
+  unit        String   @default("kg")
+  costPerUnit Decimal  @db.Decimal(10, 2)
+  proteinPercent Decimal? @db.Decimal(4, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rationItems RationItem[]
+}
+
+enum FeedType {
+  green_fodder
+  dry_fodder
+  concentrate
+  mineral_mix
+}
+
+model RationPlan {
+  id            String   @id @default(cuid())
+  farmId        String
+  farm          Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name          String
+  bodyWeightMin Decimal? @db.Decimal(6, 2)
+  bodyWeightMax Decimal? @db.Decimal(6, 2)
+  lactationStage String? // early, mid, late, dry
+  milkYieldMin  Decimal? @db.Decimal(6, 2)
+  milkYieldMax  Decimal? @db.Decimal(6, 2)
+  pregnancyStage String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  items         RationItem[]
+}
+
+model RationItem {
+  id           String   @id @default(cuid())
+  rationPlanId String
+  feedItemId   String
+  feedItem     FeedItem @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+  quantityKg   Decimal  @db.Decimal(8, 2)
+  rationPlan   RationPlan @relation(fields: [rationPlanId], references: [id], onDelete: Cascade)
+}
+
+model FeedConsumption {
+  id          String   @id @default(cuid())
+  animalId    String?
+  feedItemId  String
+  quantityKg  Decimal  @db.Decimal(8, 2)
+  consumedAt  DateTime @default(now())
+  cost        Decimal? @db.Decimal(10, 2)
+}
+
+// ============ HEALTH & VETERINARY ============
+model Vaccination {
+  id          String    @id @default(cuid())
+  animalId    String
+  animal      Animal    @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  vaccineName String
+  vaccinatedAt DateTime
+  nextDueAt   DateTime?
+  batchNumber String?
+  vetName     String?
+  cost        Decimal?  @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+model HealthRecord {
+  id            String   @id @default(cuid())
+  animalId      String
+  animal        Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  recordType    HealthRecordType
+  date          DateTime
+  diagnosis     String?
+  prescription  String?
+  prescriptionUrl String? // file upload
+  labReportUrl  String?
+  vetName       String?
+  cost          Decimal? @db.Decimal(10, 2)
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+enum HealthRecordType {
+  vaccination
+  deworming
+  treatment
+  checkup
+  disease
+  mortality
+}
+
+model Treatment {
+  id          String   @id @default(cuid())
+  animalId    String
+  animal      Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  medicineName String
+  dosage      String?
+  startDate   DateTime
+  endDate     DateTime?
+  vetName     String?
+  cost        Decimal? @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+// ============ LABOUR & HR ============
+model Worker {
+  id          String   @id @default(cuid())
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String?
+  role        String   // Milking, Feeding, Cleaning, Helper
+  salary      Decimal  @db.Decimal(12, 2)
+  shift       WorkerShift
+  joinDate    DateTime
+  leaveDate   DateTime?
+  advance     Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  attendances Attendance[]
+  taskAssignments TaskAssignment[]
+}
+
+enum WorkerShift {
+  morning
+  evening
+  full_day
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  present   Boolean  @default(true)
+  overtime  Decimal? @db.Decimal(4, 2)
+  notes     String?
+  @@unique([workerId, date])
+}
+
+model TaskAssignment {
+  id          String   @id @default(cuid())
+  workerId    String
+  worker      Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  taskType    String   // milking, feeding, cleaning
+  assignedAt  DateTime @default(now())
+  completedAt DateTime?
+  notes       String?
+}
+
+// ============ FINANCE ============
+model Transaction {
+  id          String   @id @default(cuid())
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  category    String   // Milk sale, Dung sale, Feed, Labour, etc.
+  amount      Decimal  @db.Decimal(14, 2)
+  date        DateTime @db.Date
+  description String?
+  referenceId String?  // link to milk batch, animal sale, etc.
+  createdAt   DateTime @default(now())
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+// ============ LOANS & SUBSIDY ============
+model Loan {
+  id              String   @id @default(cuid())
+  farmId          String
+  farm            Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  source          String   // SBI, NABARD, etc.
+  principal       Decimal  @db.Decimal(14, 2)
+  interestRate    Decimal  @db.Decimal(5, 2)
+  tenureMonths    Int
+  emiAmount       Decimal  @db.Decimal(12, 2)
+  startDate       DateTime
+  moratoriumMonths Int     @default(0)
+  subsidyExpected Decimal? @db.Decimal(14, 2)
+  subsidyReceived Decimal? @db.Decimal(14, 2)
+  status          LoanStatus @default(active)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  emiPayments     LoanEmiPayment[]
+}
+
+enum LoanStatus {
+  active
+  closed
+  defaulted
+}
+
+model LoanEmiPayment {
+  id        String   @id @default(cuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  dueDate   DateTime
+  paidDate  DateTime?
+  amount    Decimal  @db.Decimal(12, 2)
+  principal Decimal? @db.Decimal(12, 2)
+  interest  Decimal? @db.Decimal(12, 2)
+  outstanding Decimal? @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+}
+
+// ============ INVENTORY ============
+model InventoryItem {
+  id            String   @id @default(cuid())
+  farmId        String
+  farm          Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  itemType      InventoryType
+  name          String
+  quantity      Decimal  @db.Decimal(12, 2)
+  unit          String   @default("kg")
+  lowStockThreshold Decimal? @db.Decimal(12, 2)
+  costPerUnit   Decimal? @db.Decimal(10, 2)
+  expiryDate    DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum InventoryType {
+  feed
+  medicine
+  equipment
+  other
+}
+
+// ============ ALERTS (Heat, AI due, Vaccination, etc.) ============
+model Alert {
+  id        String   @id @default(cuid())
+  farmId    String
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  type      String   // heat_expected, ai_due, pregnancy_check, dry_period, vaccination, deworming, stock_low, emi_due
+  title     String
+  message   String
+  severity  String   // info, warning, error
+  relatedId String?  // animalId, loanId, etc.
+  dueDate   DateTime?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+// ============ AUDIT LOG ============
+model AuditLog {
+  id        String   @id @default(cuid())
+  farmId    String?
+  farm      Farm?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?    @relation("UserAudit", fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}

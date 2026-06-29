@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { LoginPage } from "@/components/login-page"
+import { LandingPage } from "@/components/landing-page"
 import { AppSidebar, type ActivePage } from "@/components/app-sidebar"
 import { DashboardPage } from "@/components/dashboard-page"
 import { BuffaloPage } from "@/components/buffalo-page"
@@ -13,17 +14,21 @@ import { LabourPage } from "@/components/labour-page"
 import { FinancePage } from "@/components/finance-page"
 import { LoansPage } from "@/components/loans-page"
 import { InventoryPage } from "@/components/inventory-page"
+import { ReproductionPage } from "@/components/reproduction-page"
 import { ReportsPage } from "@/components/reports-page"
 import { SettingsPage } from "@/components/settings-page"
 import { Bell, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
+import { useI18n } from "@/lib/i18n/context"
+
 const pages: Record<ActivePage, React.ComponentType> = {
   dashboard: DashboardPage,
   buffalo: BuffaloPage,
   milk: MilkPage,
   feed: FeedPage,
+  reproduction: ReproductionPage,
   medical: MedicalPage,
   labour: LabourPage,
   finance: FinancePage,
@@ -33,27 +38,24 @@ const pages: Record<ActivePage, React.ComponentType> = {
   settings: SettingsPage,
 }
 
-const pageTitles: Record<ActivePage, string> = {
-  dashboard: "Dashboard",
-  buffalo: "Buffalo Management",
-  milk: "Milk Production",
-  feed: "Feed Management",
-  medical: "Medical & Vet",
-  labour: "Labour",
-  finance: "Finance",
-  loans: "Loans & Subsidy",
-  inventory: "Inventory",
-  reports: "Reports",
-  settings: "Settings",
-}
-
 export function AppShell() {
   const { user } = useAuth()
+  const { t } = useI18n()
   const [activePage, setActivePage] = useState<ActivePage>("dashboard")
+  const [showLogin, setShowLogin] = useState(false)
 
-  if (!user) return <LoginPage />
+  if (!user) {
+    if (showLogin) {
+      return <LoginPage onBackToLanding={() => setShowLogin(false)} />
+    }
+    return <LandingPage onOpenLogin={() => setShowLogin(true)} />
+  }
 
   const PageComponent = pages[activePage]
+
+  // Some nav keys differ slightly from ActivePage (e.g. medical->health in messages? Wait, messages.ts has nav.medical)
+  // Let's ensure type safety. ActivePage matches keys in t.nav exactly.
+  const pageTitle = (t.nav as Record<string, string>)[activePage] || "Page"
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -62,7 +64,7 @@ export function AppShell() {
         {/* Top Bar */}
         <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6 shrink-0">
           <div className="pl-12 lg:pl-0">
-            <h2 className="text-lg font-semibold text-card-foreground">{pageTitles[activePage]}</h2>
+            <h2 className="text-lg font-semibold text-card-foreground">{pageTitle}</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="relative">
